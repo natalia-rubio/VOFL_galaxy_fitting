@@ -21,30 +21,15 @@ def load_dict(filename_):
     return dict
 
 def get_K(r, s, n):
+    # for simple python, not used
     return gamma(n/2 - s)*((4**s) * (np.pi**(n/2)) * (r**(n-2*s)))**-1
 
-def secant_method(K_target, r, n):
-    tol = abs(K_target)/1000; its = 0
-    s_guess1 = 0.5; K1 = get_K(r, s_guess1, n)
-    s_guess2 = 0.8; K2 = get_K(r, s_guess2, n)
-    #pdb.set_trace()
-    while np.linalg.norm(K_target - K2) > tol:
-
-        slope = (s_guess1 - s_guess2)/(K2 - K1)
-        s_guess1 = copy.copy(s_guess2); K1 = copy.copy(K2)
-        s_guess2 += slope*(K_target - K2); K2 = get_K(r, s_guess2, n)
-        its +=1
-        if its > 1000:
-            print(f"Reached 1000 iterations, stopping secant method.\nAchieved K = {K2}, but target K was {K_target}.")
-            break
-
-    return s_guess2
-
+# tf function to get res_norm, d res_norm/dx, and d^2 res_norm/dx^2
 @tf.function
 def get_grad(r, v, n, x):
-    with tf.GradientTape() as tape_hess:
-        with tf.GradientTape() as tape_jac:
-            with tf.GradientTape(persistent = True) as tape_r:
+    with tf.GradientTape() as tape_hess: # this tape tracks the Hessian of the residual norm wrt x
+        with tf.GradientTape() as tape_jac: # this tape tracks the Jacobian of the residual norm wrt x
+            with tf.GradientTape(persistent = True) as tape_r:  # this tape tracks dK/dr
                 tape_r.watch(r); tape_jac.watch(x); tape_hess.watch(x)
 
                 s = tf.math.add(
@@ -59,40 +44,43 @@ def get_grad(r, v, n, x):
                 abs_den = tf.math.pow(r, tf.math.subtract(n, tf.multiply(tf.convert_to_tensor(2, dtype = "float32"), s)))
                 den = tf.multiply(tf.multiply(pi_pow, four_pow), tf.multiply(gamma_den, abs_den))
 
-                K = tf.divide(gamma_num, den)
+                K_fac = tf.constant()
+                K = tf.divide(gamma_num, den) # get K - gravitational potential
 
-                # import pdb; pdb.set_trace()
             dKdr = tape_r.gradient(K, r)
-            #import pdb; pdb.set_trace()
-            residual_norm = tf.math.reduce_euclidean_norm(tf.subtract(tf.multiply(dKdr, r), tf.math.square(v)))
+
+            residual_norm = tf.math.reduce_euclidean_norm(tf.add(tf.multiply(dKdr, r), tf.math.square(v)))
 
         jacobian = tape_jac.jacobian(residual_norm, x)
     hessian = tape_hess.jacobian(jacobian, x)
     return residual_norm, jacobian, hessian
 
 def get_s(galaxy_dict):
-    r = tf.constant(galaxy_dict["r"].astype(np.float32))
-    r = r / tf.math.reduce_max(r)
-    v = tf.constant(galaxy_dict["v"].astype(np.float32))
-    v = v / tf.math.reduce_max(v)
-    n = tf.constant(np.asarray([3.0,]).astype(np.float32))
-    x = np.asarray([0.6, 0.9, 1, 0])
+    r = tf.constant(galaxy_dict["r"].astype(np.float32)) # load in radius
+    r = r / tf.math.reduce_max(r) # normalize radius
+    v = tf.constant(galaxy_dict["v"].astype(np.float32)) # load in orbital velocity
+    v = v / tf.math.reduce_max(v) # normalize orbital velocity
+    n = tf.constant(np.asarray([3.0,]).astype(np.float32)) # set number of dimensions
+    x = np.asarray([0.6, 0.9, 1, 0]) # initial guesses for x
     x = tf.convert_to_tensor(x, dtype = "float32")
     residual_norm = 1
-    tol = 0.1
-    nits = 0
-    get_grad_concrete = get_grad.get_concrete_function(r, v, n, x)
+    tol = 0.1 # acceptable residual norm
+    nits = 0 # number of Newton iterations
+    get_grad_concrete = get_grad.get_concrete_function(r, v, n, x) # initialize tensorflow concrete function
     while residual_norm > tol:
         nits += 1
-        residual_norm, jacobian, hessian = get_grad_concrete(r, v, n, x)
 
-        x = x - tf.reshape(tf.linalg.solve(hessian, tf.reshape(jacobian, [4,1])),[4,])
-
+        residual_norm, jacobian, hessian = get_grad_concrete(r, v, n, x) # tf function to get res_norm, d res_norm/dx, and d^2 res_norm/dx^2
+        x = x - tf.reshape(tf.linalg.solve(hessian, tf.reshape(jacobian, [4,1])),[4,]) # take Newton step
         residual_norm = residual_norm.numpy()
+
         print(f"Newton iteration {nits}.  Residual norm: {residual_norm}. X = {x.numpy()}")
+        if nits > 30:   break
+
     return x
 
 if __name__ == "__main__":
+
     NGC_galaxies_results_dict = load_dict("NGC_galaxies_dict")
     for galaxy_name in NGC_galaxies_results_dict.keys():
         galaxy_dict = NGC_galaxies_results_dict[galaxy_name]
