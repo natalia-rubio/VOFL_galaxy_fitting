@@ -15,4 +15,4 @@ We want to choose $s(r)$ such that the relationship between radius and orbital v
 
 We measure how far $s(r)$ is from capturing the true relationship for a set of radii and orbital velocities as $\epsilon = || \vec{v} (s, \vec{r}) - \vec{v}_{data} ||_2$.  (Assuming convexity?  Should check this -->) The $\vec{x}$ that minimizes $\epsilon$ are that for which $\frac{d \epsilon}{d \vec{x}} = \vec{0}$.  To find this $\vec{x}$, we use Newton's Method where each Newton step is given as 
 
-$$\vec{x}^{k+1} = \vec{x}^{k}- \nabla^2 \epsilon(\vec{x}^{k})^{-1} \nabla(\epsilon(\vec{x}^{k})).$$
+$$\vec{x}^{k+1} = \vec{x}^{k}- \left(\nabla^2 \epsilon(\vec{x}^{k})\right)^{-1} \nabla(\epsilon(\vec{x}^{k})).$$
