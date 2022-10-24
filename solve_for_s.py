@@ -21,9 +21,7 @@ def load_dict(filename_):
 
 def load_galaxy_data(galaxy_dict):
     r = tf.constant(galaxy_dict["r"].astype(np.float64)) # load in radius
-    #r = r / tf.math.reduce_max(r) # normalize radius
     v = tf.constant(galaxy_dict["v"].astype(np.float64)) # load in orbital velocity
-    #v = v / tf.math.reduce_max(v) # normalize orbital velocity
     n = tf.constant(np.asarray([3.0,]).astype(np.float64)) # set number of dimensions
     x = np.asarray([0.001, 1.5, 0.01]) # initial guesses for x
     x = tf.convert_to_tensor(x, dtype = "float64")
@@ -74,23 +72,15 @@ def get_grad(r, v, n, x):
             with tf.GradientTape(persistent = True) as tape_r:  # this tape tracks dK/dr
                 tape_r.watch(r); tape_jac.watch(x); tape_hess.watch(x)
 
-                # s = tf.math.add(tf.math.divide(tf.math.add(x[0], tf.math.multiply(x[1], r)),
-                #     tf.math.add(tf.convert_to_tensor(1, dtype = "float64"), tf.math.multiply(x[2], r))), x[3])
                 s = tf.math.divide(tf.math.add(tf.math.multiply(x[0], \
                 tf.math.pow(tf.convert_to_tensor(10, dtype = "float64"), tf.convert_to_tensor(20 , dtype = "float64"))),
                 tf.math.multiply(x[1], r)),
                 tf.math.add(tf.math.multiply(x[2], \
                 tf.math.pow(tf.convert_to_tensor(10, dtype = "float64"), tf.convert_to_tensor(20 , dtype = "float64"))), r))
 
-                # tf.print("r:", r)
-                # tf.print("s shape: ", tf.shape(s))
-                # tf.print("s num: ", tf.math.add(x[0], tf.math.multiply(x[1], r)))
-                # tf.print("s den: ", tf.math.add(tf.convert_to_tensor(1, dtype = "float64"), r))
-
                 gamma_num = tf.math.exp(tf.math.lgamma(tf.math.subtract(tf.math.divide(n,tf.convert_to_tensor(2, dtype = "float64")), s)))
                 pi_pow = tf.math.pow(tf.convert_to_tensor(np.pi, dtype = "float64"), tf.math.divide(n, tf.convert_to_tensor(2, dtype = "float64")))
                 four_pow = tf.math.pow(tf.convert_to_tensor(4, dtype = "float64"), tf.subtract(s, tf.convert_to_tensor(1, dtype = "float64")))
-
 
                 gamma_den = tf.math.exp(tf.math.lgamma(s))
                 abs_den = tf.math.pow(r, tf.math.subtract(n, tf.multiply(tf.convert_to_tensor(2, dtype = "float64"), s)))
@@ -100,14 +90,9 @@ def get_grad(r, v, n, x):
                 tf.subtract(tf.convert_to_tensor(2, dtype = "float64"),\
                 tf.multiply(tf.convert_to_tensor(2, dtype = "float64"), s)))
                 num = tf.multiply(gamma_num, length_scale)
-                #num = gamma_num
-
 
                 K_fac = tf.constant(-6.67*10**(-11) * 10**(39), dtype = tf.float64)
                 phi = tf.multiply(K_fac, tf.divide(num, den)) # get K - gravitational potential
-
-            # dKdr = tf.math.log(tape_r.gradient(K, r))
-
 
             dphidr = tf.math.abs(tape_r.gradient(phi, r))
             v_calc = tf.sqrt(tf.multiply(dphidr, r))
@@ -141,12 +126,11 @@ def get_grad(r, v, n, x):
 
             residual_norm = tf.math.reduce_euclidean_norm(tf.subtract( \
             tf.sqrt(tf.multiply(dphidr, r)), tf.math.abs(v)))
-            #tf.print("residual_norm: ", residual_norm)
 
         jacobian = tape_jac.jacobian(residual_norm, x)
-        #tf.print("Jacobian: ", jacobian)
+
     hessian = tape_hess.jacobian(jacobian, x)
-    #tf.print("Hessian: ", hessian)
+
     return residual_norm, jacobian, hessian, phi, s, v_calc
 
 def get_s(galaxy_dict):
@@ -159,32 +143,20 @@ def get_s(galaxy_dict):
     get_grad_concrete = get_grad.get_concrete_function(r, v, n, x) # initialize tensorflow concrete function
     while residual_norm > tol:
         nits += 1
-
         residual_norm, jacobian, hessian, phi, s, v_calc = get_grad_concrete(r, v, n, x) # tf function to get res_norm, d res_norm/dx, and d^2 res_norm/dx^2
-        if False:
-            plt.clf(); plt.plot(r, phi.numpy())
-            plt.xlabel("r (m)"); plt.ylabel("$\Phi$ ($m^2 s^{-2}$)")
-            plt.savefig("phi_vs_r.png", bbox_inches = "tight")
 
-            plt.clf(); plt.plot(r, s.numpy())
-            plt.xlabel("r (m)"); plt.ylabel("$s$")
-            plt.savefig("s_vs_r.png", bbox_inches = "tight")
-            #import pdb; pdb.set_trace()
-
-        #check_fin_diff(0.001, r, v, n, x.numpy(), residual_norm, jacobian, hessian, get_grad_concrete = get_grad_concrete)
-        #print(np.linalg.eig(hessian))
-        #import pdb; pdb.set_trace()
         try:
             x = x - tf.reshape(tf.linalg.solve(hessian, tf.reshape(jacobian, [3,1])),[3,]) # take Newton step
         except:
             import pdb; pdb.set_trace()
+
         residual_norm = residual_norm.numpy()
 
         print(f"Newton iteration {nits}.  Residual norm: {residual_norm}. X = {x.numpy()}")
         print(f"Newton  step: {tf.reshape(tf.linalg.solve(hessian, tf.reshape(jacobian, [3,1])),[3,])}")
         print(f"New x: {x}")
         it_list.append(nits); res_list.append(residual_norm)
-        if nits == 30:
+        if nits == 60:
             plt.clf(); plt.plot(r, phi.numpy())
             plt.xlabel("r (m)"); plt.ylabel("$\Phi$ ($m^2 s^{-2}$)")
             plt.savefig("phi_vs_r.png", bbox_inches = "tight")
@@ -206,9 +178,8 @@ def get_s(galaxy_dict):
             plt.ylabel("residual_norm ($m s^{-1}$)")
             plt.yscale("log")
             plt.savefig("residual.png", bbox_inches = "tight")
-            #break
             import pdb; pdb.set_trace()
-
+            break
     return x
 
 if __name__ == "__main__":
