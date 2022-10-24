@@ -8,7 +8,7 @@ import pdb
 import copy
 from os.path import exists
 import tensorflow as tf
-font = {"size": 16}
+plt.rcParams.update({'font.size': 16})
 
 def save_dict(di_, filename_):
     with open(filename_, 'wb') as f:
@@ -25,7 +25,7 @@ def load_galaxy_data(galaxy_dict):
     v = tf.constant(galaxy_dict["v"].astype(np.float64)) # load in orbital velocity
     #v = v / tf.math.reduce_max(v) # normalize orbital velocity
     n = tf.constant(np.asarray([3.0,]).astype(np.float64)) # set number of dimensions
-    x = np.asarray([0.1 , 1/np.max(galaxy_dict["r"]), 1/np.max(galaxy_dict["r"]), 0]) # initial guesses for x
+    x = np.asarray([0.001, 1.5, 0.01]) # initial guesses for x
     x = tf.convert_to_tensor(x, dtype = "float64")
     return r, v, n, x
 
@@ -74,8 +74,18 @@ def get_grad(r, v, n, x):
             with tf.GradientTape(persistent = True) as tape_r:  # this tape tracks dK/dr
                 tape_r.watch(r); tape_jac.watch(x); tape_hess.watch(x)
 
-                s = tf.math.add(tf.math.divide(tf.math.add(x[0], tf.math.multiply(x[1], r)),
-                    tf.math.add(tf.convert_to_tensor(1, dtype = "float64"), tf.math.multiply(x[2], r))), x[3])
+                # s = tf.math.add(tf.math.divide(tf.math.add(x[0], tf.math.multiply(x[1], r)),
+                #     tf.math.add(tf.convert_to_tensor(1, dtype = "float64"), tf.math.multiply(x[2], r))), x[3])
+                s = tf.math.divide(tf.math.add(tf.math.multiply(x[0], \
+                tf.math.pow(tf.convert_to_tensor(10, dtype = "float64"), tf.convert_to_tensor(20 , dtype = "float64"))),
+                tf.math.multiply(x[1], r)),
+                tf.math.add(tf.math.multiply(x[2], \
+                tf.math.pow(tf.convert_to_tensor(10, dtype = "float64"), tf.convert_to_tensor(20 , dtype = "float64"))), r))
+
+                # tf.print("r:", r)
+                # tf.print("s shape: ", tf.shape(s))
+                # tf.print("s num: ", tf.math.add(x[0], tf.math.multiply(x[1], r)))
+                # tf.print("s den: ", tf.math.add(tf.convert_to_tensor(1, dtype = "float64"), r))
 
                 gamma_num = tf.math.exp(tf.math.lgamma(tf.math.subtract(tf.math.divide(n,tf.convert_to_tensor(2, dtype = "float64")), s)))
                 pi_pow = tf.math.pow(tf.convert_to_tensor(np.pi, dtype = "float64"), tf.math.divide(n, tf.convert_to_tensor(2, dtype = "float64")))
@@ -89,47 +99,59 @@ def get_grad(r, v, n, x):
                 tf.convert_to_tensor(19 , dtype = "float64")), \
                 tf.subtract(tf.convert_to_tensor(2, dtype = "float64"),\
                 tf.multiply(tf.convert_to_tensor(2, dtype = "float64"), s)))
-                #num = tf.multiply(gamma_num, length_scale)
-                num = gamma_num
-                tf.print("gamma_num: ", gamma_num)
-                tf.print("gamma_num inside: ", tf.math.subtract(tf.math.divide(n,tf.convert_to_tensor(2, dtype = "float64")), s))
-                tf.print("gamma_den: ", gamma_den)
+                num = tf.multiply(gamma_num, length_scale)
+                #num = gamma_num
 
-                #K_fac = tf.constant(6.67*10**(-11) * 10**(300), dtype = tf.float64)
-                K_fac = tf.constant(6.67*10**(-11) * 10**(39), dtype = tf.float64)
-                K = tf.divide(num, den) # get K - gravitational potential
+
+                K_fac = tf.constant(-6.67*10**(-11) * 10**(39), dtype = tf.float64)
+                phi = tf.multiply(K_fac, tf.divide(num, den)) # get K - gravitational potential
 
             # dKdr = tf.math.log(tape_r.gradient(K, r))
-            dKdr = tape_r.gradient(K, r)
 
-            if True:
-                tf.print("K: ", K)
+
+            dphidr = tf.math.abs(tape_r.gradient(phi, r))
+            v_calc = tf.sqrt(tf.multiply(dphidr, r))
+            if False:
+                tf.print("num", num)
+                tf.print("den", den)
+                tf.print("dnum dr", tape_r.gradient(num, r))
+                tf.print("dlden dr", tape_r.gradient(den, r))
+                tf.print("quotient first term", tf.multiply(den, tape_r.gradient(num, r)))
+                tf.print("quotient second term", tf.multiply(num, tape_r.gradient(den, r)))
+                tf.print("d gamma den dr", tape_r.gradient(gamma_den, r))
+                tf.print("d abs den dr", tape_r.gradient(abs_den, r))
+
+                tf.print("s: ", s)
+                tf.print("Phi: ", phi)
+                tf.print("max Phi: ", tf.math.reduce_max(phi))
                 tf.print("r shape: ", tf.shape(r))
-                tf.print("dKdr: ", dKdr)
+                tf.print("dPhidr: ", dphidr)
                 tf.print("s: ", s)
                 tf.print("length scale: ", length_scale)
                 tf.print("r: ", r)
-                tf.print("r * dKdr: ", tf.multiply(r, dKdr))
-                tf.print("dKdr shape: ", tf.shape(dKdr))
-                tf.print("dKdr maximum: ", tf.reduce_max(dKdr))
+                tf.print("r * dPhidr: ", tf.multiply(r, dphidr))
+                tf.print("dPhidr shape: ", tf.shape(dphidr))
+                tf.print("dPhidr maximum: ", tf.reduce_max(dphidr))
 
-                tf.print("dKdr * K_fac ", tf.multiply(K_fac, tf.multiply(dKdr, r)))
-                tf.print("sqrt dKdr * K_fac ", tf.sqrt(tf.multiply(K_fac, tf.multiply(dKdr, r))))
+                tf.print("dPhidr", dphidr, summarize = 28)
+                tf.print("sqrt r * dPhidr", tf.sqrt(tf.multiply(dphidr, r)))
                 tf.print("before norm ", tf.subtract( \
-                tf.sqrt(tf.multiply(K_fac, tf.multiply(dKdr, r))), tf.math.abs(v)))
+                tf.sqrt(tf.multiply(dphidr, r)), tf.math.abs(v)))
+                tf.print("V :", v)
 
             residual_norm = tf.math.reduce_euclidean_norm(tf.subtract( \
-            tf.sqrt(tf.multiply(K_fac, tf.multiply(dKdr, r))), tf.math.abs(v)))
-            tf.print("residual_norm: ", residual_norm)
+            tf.sqrt(tf.multiply(dphidr, r)), tf.math.abs(v)))
+            #tf.print("residual_norm: ", residual_norm)
 
         jacobian = tape_jac.jacobian(residual_norm, x)
-        tf.print("Jacobian: ", jacobian)
+        #tf.print("Jacobian: ", jacobian)
     hessian = tape_hess.jacobian(jacobian, x)
-    tf.print("Hessian: ", hessian)
-    return residual_norm, jacobian, hessian
+    #tf.print("Hessian: ", hessian)
+    return residual_norm, jacobian, hessian, phi, s, v_calc
 
 def get_s(galaxy_dict):
-
+    res_list = []
+    it_list = []
     r, v, n, x = load_galaxy_data(galaxy_dict)
     residual_norm = 1
     tol = 0.1 # acceptable residual norm
@@ -138,18 +160,54 @@ def get_s(galaxy_dict):
     while residual_norm > tol:
         nits += 1
 
-        residual_norm, jacobian, hessian = get_grad_concrete(r, v, n, x) # tf function to get res_norm, d res_norm/dx, and d^2 res_norm/dx^2
+        residual_norm, jacobian, hessian, phi, s, v_calc = get_grad_concrete(r, v, n, x) # tf function to get res_norm, d res_norm/dx, and d^2 res_norm/dx^2
+        if False:
+            plt.clf(); plt.plot(r, phi.numpy())
+            plt.xlabel("r (m)"); plt.ylabel("$\Phi$ ($m^2 s^{-2}$)")
+            plt.savefig("phi_vs_r.png", bbox_inches = "tight")
+
+            plt.clf(); plt.plot(r, s.numpy())
+            plt.xlabel("r (m)"); plt.ylabel("$s$")
+            plt.savefig("s_vs_r.png", bbox_inches = "tight")
+            #import pdb; pdb.set_trace()
+
         #check_fin_diff(0.001, r, v, n, x.numpy(), residual_norm, jacobian, hessian, get_grad_concrete = get_grad_concrete)
         #print(np.linalg.eig(hessian))
         #import pdb; pdb.set_trace()
-        x = x - tf.reshape(tf.linalg.solve(hessian, tf.reshape(jacobian, [4,1])),[4,]) # take Newton step
+        try:
+            x = x - tf.reshape(tf.linalg.solve(hessian, tf.reshape(jacobian, [3,1])),[3,]) # take Newton step
+        except:
+            import pdb; pdb.set_trace()
         residual_norm = residual_norm.numpy()
 
         print(f"Newton iteration {nits}.  Residual norm: {residual_norm}. X = {x.numpy()}")
-        print(f"Newton  step: {tf.reshape(tf.linalg.solve(hessian, tf.reshape(jacobian, [4,1])),[4,])}")
+        print(f"Newton  step: {tf.reshape(tf.linalg.solve(hessian, tf.reshape(jacobian, [3,1])),[3,])}")
         print(f"New x: {x}")
-        if nits > 30:   break
-        import pdb; pdb.set_trace()
+        it_list.append(nits); res_list.append(residual_norm)
+        if nits == 30:
+            plt.clf(); plt.plot(r, phi.numpy())
+            plt.xlabel("r (m)"); plt.ylabel("$\Phi$ ($m^2 s^{-2}$)")
+            plt.savefig("phi_vs_r.png", bbox_inches = "tight")
+
+            plt.clf(); plt.plot(r, s.numpy())
+            plt.xlabel("r (m)"); plt.ylabel("$s$")
+            plt.savefig("s_vs_r.png", bbox_inches = "tight")
+
+            plt.clf()
+            plt.plot(r, v, label = "data")
+            plt.plot(r, v_calc, label = "predicted")
+            plt.xlabel("r (m)"); plt.legend()
+            plt.ylabel("orbital velocity ($m s^{-1}$)")
+            plt.savefig("r_vorb.png", bbox_inches = "tight")
+
+            plt.clf()
+            plt.plot(it_list, res_list)
+            plt.xlabel("iteration")
+            plt.ylabel("residual_norm ($m s^{-1}$)")
+            plt.yscale("log")
+            plt.savefig("residual.png", bbox_inches = "tight")
+            #break
+            import pdb; pdb.set_trace()
 
     return x
 
