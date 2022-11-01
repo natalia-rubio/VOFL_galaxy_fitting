@@ -12,7 +12,7 @@ from util import *
 from matplotlib import cm
 plt.rcParams.update({'font.size': 10})
 
-def plot_grid_results(res_grid, x0_vals, x1_vals, x2_vals):
+def plot_grid_results(res_grid, x0_vals, x1_vals, x2_vals, best_loc):
 
     res_grid[np.where(np.isnan(res_grid))] = np.max(res_grid)
     X0, X1, X2 = np.meshgrid(x0_vals, x1_vals, x2_vals)
@@ -31,9 +31,28 @@ def plot_grid_results(res_grid, x0_vals, x1_vals, x2_vals):
     ax.set_ylabel('x1')
     ax.set_zlabel('x2')
     ax.view_init(azim=-30, elev=20)
-
-
     fig.savefig("plots/residual_grid")
+
+    #import pdb; pdb.set_trace()
+    upper_bound = np.ones(res_grid.shape[0]) * 10**2 * np.min(res_grid)
+    plt.clf()
+    fig = plt.figure(figsize=(10, 6))
+    plt.subplot(131)
+    plt.plot(x0_vals, np.minimum(res_grid[:,best_loc[1], best_loc[2]], upper_bound))
+    plt.xlabel("x0"); plt.ylabel("residual")
+    plt.yscale("log")
+
+    plt.subplot(132)
+    plt.plot(x1_vals, np.minimum(res_grid[best_loc[0], :, best_loc[2]], upper_bound))
+    plt.xlabel("x1"); plt.ylabel("residual")
+    plt.yscale("log")
+
+    plt.subplot(133)
+    plt.plot(x2_vals, np.minimum(res_grid[best_loc[0], best_loc[1], :], upper_bound))
+    plt.xlabel("x2"); plt.ylabel("residual")
+    plt.yscale("log")
+
+    plt.savefig("res_vary_x.png")
     return
 
 def grid_search(grid_ranges, galaxy_dict):
@@ -63,11 +82,11 @@ def grid_search(grid_ranges, galaxy_dict):
     print(f"Lowest residual from grid search {np.min(res_grid)}")
     residual_norm, jacobian, hessian, phi, s, v_calc = get_grad_concrete(r, v, n, best_x)
 
-    plot_grid_results(res_grid, x0_vals, x1_vals, x2_vals)
+    plot_grid_results(res_grid, x0_vals, x1_vals, x2_vals, best_loc)
     plot_velocities(r, v, v_calc, "grid_search")
     plot_s(r, best_x, "grid_search")
 
-    #import pdb; pdb.set_trace()
+    import pdb; pdb.set_trace()
     return best_x
 
 

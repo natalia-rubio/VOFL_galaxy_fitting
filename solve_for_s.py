@@ -12,7 +12,7 @@ from util import *
 from newton_util import *
 from grid_search_util import *
 
-plt.rcParams.update({'font.size': 16})
+plt.rcParams.update({'font.size': 14})
 
 def get_s(galaxy_dict):
 
@@ -25,11 +25,11 @@ def get_s(galaxy_dict):
     #                 "x1": [1.5, 2],
     #                 "x2": [1, 1.5]}
 
-    plot_v2r(r = galaxy_dict["r"], v_data = galaxy_dict["v"], plot_name ="1")
-    import pdb; pdb.set_trace()
+    #plot_v2r(r = galaxy_dict["r"], v_data = galaxy_dict["v"], plot_name ="1")
+
     grid_ranges = {"x0": [2.5, 2.7],
-                    "x1": [1.5, 1.6],
-                    "x2": [1.7, 1.8]}
+                    "x1": [1.5, 1.55],
+                    "x2": [1.7, 1.79]}
     #
     # grid_ranges = {"x0": [0.5, 2],
     #                 "x1": [0.5, 2],
