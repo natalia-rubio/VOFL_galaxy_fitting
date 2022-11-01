@@ -57,7 +57,7 @@ def get_grad(r, v, n, x):
                 K_fac = tf.constant(-6.67*10**(-11) * 10**(39), dtype = tf.float64)
                 phi = tf.multiply(K_fac, tf.divide(num, den)) # get K - gravitational potential
 
-            dphidr = tf.math.abs(tape_r.gradient(phi, r))
+            dphidr = tape_r.gradient(phi, r)
             v_calc = tf.sqrt(tf.multiply(dphidr, r))
             if False:
                 tf.print("num", num)
@@ -103,6 +103,14 @@ def plot_velocities(r, v_data, v_calc, plot_name):
     plt.xlabel("r (m)"); plt.legend()
     plt.ylabel("orbital velocity ($m s^{-1}$)")
     plt.savefig(f"plots/r_vorb_{plot_name}.png", bbox_inches = "tight")
+    return
+
+def plot_v2r(r, v_data, plot_name):
+    plt.clf()
+    plt.plot(r, np.square(v_data)/r, label = "data")
+    plt.xlabel("r (m)"); plt.legend()
+    plt.ylabel("centripetal acceleration ($v^{-2}r^{-1}$)")
+    plt.savefig(f"plots/cent_acc_{plot_name}.png", bbox_inches = "tight")
     return
 
 def plot_s(r, x, plot_name):
