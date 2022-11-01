@@ -67,7 +67,7 @@ def grid_search(grid_ranges, galaxy_dict):
     plot_velocities(r, v, v_calc, "grid_search")
     plot_s(r, best_x, "grid_search")
 
-    import pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
     return best_x
 
 
