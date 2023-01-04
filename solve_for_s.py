@@ -27,9 +27,9 @@ def get_s(galaxy_dict):
 
     #plot_v2r(r = galaxy_dict["r"], v_data = galaxy_dict["v"], plot_name ="1")
 
-    grid_ranges = {"x0": [2.5, 2.7],
-                    "x1": [1.5, 1.55],
-                    "x2": [1.7, 1.79]}
+    grid_ranges = {"x0": [0.2, 1],
+                    "x1": [0.1, 1.5],
+                    "x2": [0.2, 1]}
     #
     # grid_ranges = {"x0": [0.5, 2],
     #                 "x1": [0.5, 2],

@@ -51,25 +51,25 @@ def get_K(r, s, n):
 def plot_newton_results(r, phi, s, v, v_calc, it_list, res_list):
     plt.clf(); plt.plot(r, phi.numpy())
     plt.xlabel("r (m)"); plt.ylabel("$\Phi$ ($m^2 s^{-2}$)")
-    plt.savefig("phi_vs_r.png", bbox_inches = "tight")
+    plt.savefig("plots/phi_vs_r_newton.png", bbox_inches = "tight")
 
     plt.clf(); plt.plot(r, s.numpy())
     plt.xlabel("r (m)"); plt.ylabel("$s$")
-    plt.savefig("s_vs_r.png", bbox_inches = "tight")
+    plt.savefig("plots/s_vs_r_newton.png", bbox_inches = "tight")
 
     plt.clf()
     plt.plot(r, v, label = "data")
     plt.plot(r, v_calc, label = "predicted")
     plt.xlabel("r (m)"); plt.legend()
     plt.ylabel("orbital velocity ($m s^{-1}$)")
-    plt.savefig("r_vorb.png", bbox_inches = "tight")
+    plt.savefig("plots/r_vorb_newton.png", bbox_inches = "tight")
 
     plt.clf()
     plt.plot(it_list, res_list)
     plt.xlabel("iteration")
     plt.ylabel("residual_norm ($m s^{-1}$)")
     plt.yscale("log")
-    plt.savefig("residual.png", bbox_inches = "tight")
+    plt.savefig("plots/residual_newton.png", bbox_inches = "tight")
     return
 
 def run_newton_solve(initial_guess, galaxy_dict):

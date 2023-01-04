@@ -54,10 +54,12 @@ def get_grad(r, v, n, x):
                 tf.multiply(tf.convert_to_tensor(2, dtype = "float64"), s)))
                 num = tf.multiply(gamma_num, length_scale)
 
-                K_fac = tf.constant(-6.67*10**(-11) * 10**(39), dtype = tf.float64)
+                # mass 10^39
+                K_fac = tf.constant(6.67*10**(-11) * 10**(40), dtype = tf.float64)
                 phi = tf.multiply(K_fac, tf.divide(num, den)) # get K - gravitational potential
 
             dphidr = tape_r.gradient(phi, r)
+            #v_calc = tf.sqrt(tf.multiply(tf.multiply(tf.convert_to_tensor(-1, dtype = "float64"), dphidr), r))
             v_calc = tf.sqrt(tf.multiply(dphidr, r))
             if False:
                 tf.print("num", num)
@@ -119,7 +121,13 @@ def plot_s(r, x, plot_name):
     #import pdb; pdb.set_trace()
     s = (x[0] + x[1]*r)/(x[2] + r)
     #print(f"s: {s}")
+
     plt.clf(); plt.plot(r, s)
     plt.xlabel("r (m)"); plt.ylabel("$s$")
     plt.savefig(f"plots/s_vs_r_{plot_name}.png", bbox_inches = "tight")
     return
+
+def plot_phi(r, phi, plot_name):
+    plt.clf(); plt.plot(r, phi.numpy())
+    plt.xlabel("r (m)"); plt.ylabel("$\Phi$ ($m^2 s^{-2}$)")
+    plt.savefig(f"plots/phi_{plot_name}.png", bbox_inches = "tight")

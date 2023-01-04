@@ -14,7 +14,7 @@ plt.rcParams.update({'font.size': 10})
 
 def plot_grid_results(res_grid, x0_vals, x1_vals, x2_vals, best_loc):
 
-    res_grid[np.where(np.isnan(res_grid))] = np.max(res_grid)
+    #res_grid[np.where(np.isnan(res_grid))] = np.max(res_grid)
     X0, X1, X2 = np.meshgrid(x0_vals, x1_vals, x2_vals)
     fig = plt.figure(figsize=(8, 6))
     plt.rcParams.update({'font.size': 10})
@@ -23,14 +23,14 @@ def plot_grid_results(res_grid, x0_vals, x1_vals, x2_vals, best_loc):
 
     colmap = cm.ScalarMappable(cmap=cm.hsv)
     colmap.set_array(res_grid)
-    img = ax.scatter(X0, X1, X2, c = np.minimum(res_grid/np.min(res_grid), 1.2*np.ones(res_grid.shape)), cmap = plt.cool(), alpha = 0.6)
+    img = ax.scatter(X0, X1, X2, c = np.minimum(res_grid/np.nanmin(res_grid), 1.2*np.ones(res_grid.shape)), cmap = plt.cool(), alpha = 0.3)
     cax = ax.inset_axes([1.15, 0.2, 0.05, 0.6])
     cb = fig.colorbar(img, shrink=0.5, aspect=8, cax = cax)
 
     ax.set_xlabel('x0')
     ax.set_ylabel('x1')
     ax.set_zlabel('x2')
-    ax.view_init(azim=-30, elev=20)
+    ax.view_init(azim=-30, elev=-20)
     fig.savefig("plots/residual_grid")
 
     #import pdb; pdb.set_trace()
@@ -56,7 +56,7 @@ def plot_grid_results(res_grid, x0_vals, x1_vals, x2_vals, best_loc):
     return
 
 def grid_search(grid_ranges, galaxy_dict):
-    num_samples = 17
+    num_samples = 25
     x0_vals = np.linspace(grid_ranges["x0"][0], grid_ranges["x0"][1], num_samples, endpoint = True)
     x1_vals = np.linspace(grid_ranges["x1"][0], grid_ranges["x1"][1], num_samples, endpoint = True)
     x2_vals = np.linspace(grid_ranges["x2"][0], grid_ranges["x2"][1], num_samples, endpoint = True)
@@ -71,24 +71,91 @@ def grid_search(grid_ranges, galaxy_dict):
         for j, x1 in enumerate(list(x1_vals)):
             for k, x2 in enumerate(list(x2_vals)):
                 x = tf.convert_to_tensor(np.asarray([x0, x1, x2]), dtype = "float64")
-                residual_norm, jacobian, hessian, phi, s, v_calc = get_grad_concrete(r, v, n, x)
-                res_grid[i, j, k] = residual_norm.numpy()
 
+                s_asym = x1#10**20 * x[1]/np.max(r)
+                s_init = x0/x2
+
+                if s_asym > 1.5 or s_init > 1.5:
+                    #print(f"Invalid x {x}, skipping.")
+                    continue
+                if s_asym < s_init:
+                    #print(f"Invalid x {x}, skipping.")
+                    continue
+
+
+
+                residual_norm, jacobian, hessian, phi, s, v_calc = get_grad_concrete(r, v, n, x)
+                if np.any(np.isnan(v_calc)):
+                    #print(f"Unphysical phi: {phi} from x: {x}, skipping.")
+                    #plot_phi(r, phi, "grid_search")
+                    #import pdb; pdb.set_trace()
+                    continue
+                print(f"Valid x! {x}")
+                res_grid[i, j, k] = residual_norm.numpy()
+                print
     res_grid[np.isnan(res_grid)] = np.Inf
     best_loc = np.unravel_index(np.argmin(res_grid.flatten()), res_grid.shape)
     best_x = tf.convert_to_tensor(np.asarray([x0_vals[best_loc[0]], x1_vals[best_loc[1]], x2_vals[best_loc[2]]]), dtype = "float64")
 
     tf.print("Best x from grid search: ", best_x)
-    print(f"Lowest residual from grid search {np.min(res_grid)}")
+    print(f"Lowest residual from grid search {np.nanmin(res_grid)}")
     residual_norm, jacobian, hessian, phi, s, v_calc = get_grad_concrete(r, v, n, best_x)
 
+    res_grid[np.isinf(res_grid)] = np.nan
     plot_grid_results(res_grid, x0_vals, x1_vals, x2_vals, best_loc)
     plot_velocities(r, v, v_calc, "grid_search")
     plot_s(r, best_x, "grid_search")
+    plot_phi(r, phi, "grid_search")
 
-    import pdb; pdb.set_trace()
     return best_x
 
+def mass_search(mass_ranges, galaxy_dict):
+    num_samples = 25
+    mass_vals = np.linspace(grid_ranges["x0"][0], grid_ranges["x0"][1], num_samples, endpoint = True)
 
+    res_grid = np.empty((num_samples,))
+    res_grid.fill(np.nan)
+
+    r, v, n, x = load_galaxy_data(galaxy_dict)
+    get_grad_concrete = get_grad.get_concrete_function(r, v, n, x) # initialize tensorflow concrete function
+
+
+    for i, mass in enumerate(list(mass_vals)):
+
+                s_asym = x1#10**20 * x[1]/np.max(r)
+                s_init = x0/x2
+
+                if s_asym > 1.5 or s_init > 1.5:
+                    #print(f"Invalid x {x}, skipping.")
+                    continue
+                if s_asym < s_init:
+                    #print(f"Invalid x {x}, skipping.")
+                    continue
+
+
+
+                residual_norm, jacobian, hessian, phi, s, v_calc = get_grad_concrete(r, v, n, x)
+                if np.any(np.isnan(v_calc)):
+                    #print(f"Unphysical phi: {phi} from x: {x}, skipping.")
+                    #plot_phi(r, phi, "grid_search")
+                    #import pdb; pdb.set_trace()
+                    continue
+                print(f"Valid x! {x}")
+                res_grid[i] = residual_norm.numpy()
+                print
+
+    best_mass = mass_vals
+
+    tf.print("Best x from grid search: ", best_x)
+    print(f"Lowest residual from grid search {np.nanmin(res_grid)}")
+    residual_norm, jacobian, hessian, phi, s, v_calc = get_grad_concrete(r, v, n, best_x)
+
+    res_grid[np.isinf(res_grid)] = np.nan
+    plot_grid_results(res_grid, x0_vals, x1_vals, x2_vals, best_loc)
+    plot_velocities(r, v, v_calc, "grid_search")
+    plot_s(r, best_x, "grid_search")
+    plot_phi(r, phi, "grid_search")
+
+    return best_x
 
 # plot grid_results
