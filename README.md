@@ -22,6 +22,10 @@ solve_for_s.py : Find $\vec{x}$ for each galaxy by running Newton's method descr
 
 extract_galaxies.py : Extract orbital velocity vs radius data from .dat files downloaded from online database.
 
-examine_results : Analyze distribution of $\vec{x}$ values for different galaxies.
+examine_results.py : Analyze distribution of $\vec{x}$ values for different galaxies.
+
+grid_search_util.py: Use grid search to choose an initial guess for $\vec{x}$.
+
+newton_util.py: Use Newton's method to fit $\vec{x}$ to data using tensorflow's automatic differentiation tools.
 
 NGC_galaxies_dict : Dictionary storing extracted orbital velocity vs radius data for NGC galaxies.
